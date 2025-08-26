@@ -1,0 +1,48 @@
+name: Update moving tags
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-tags:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Move major and minor tags
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          echo "Release tag: $TAG"
+          if [[ ! "$TAG" =~ ^v[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "Tag $TAG does not look like v<major>[.<minor>[.<patch>]]; skipping." >&2
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          major_tag="${TAG%%.*}"
+          echo "Updating major tag: $major_tag -> $TAG"
+          git tag -fa "$major_tag" -m "Update $major_tag to $TAG"
+          git push origin "$major_tag" --force
+
+          # Compute minor tag (vX.Y) only if TAG has at least two segments
+          if [[ "$TAG" == v*.*.* || "$TAG" == v*.* ]]; then
+            minor_tag="${TAG%.*}"
+            if [[ "$minor_tag" != "$major_tag" ]]; then
+              echo "Updating minor tag: $minor_tag -> $TAG"
+              git tag -fa "$minor_tag" -m "Update $minor_tag to $TAG"
+              git push origin "$minor_tag" --force
+            fi
+          fi
+

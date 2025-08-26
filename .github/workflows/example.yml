@@ -1,0 +1,41 @@
+name: Example usage of gatus-snitcher
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate work
+        run: |
+          echo "Doing some work..."
+          sleep 2
+
+      - name: Report success to Gatus
+        uses: ./
+        with:
+          base-url: https://status.example.com
+          group: ci
+          name: demo-job
+          token: ${{ secrets.GATUS_TOKEN }}
+          status: success
+          duration: 2s
+
+      - name: Simulate failure
+        run: |
+          echo "Simulating failure..." >&2
+          exit 1
+        continue-on-error: true
+
+      - name: Report error to Gatus
+        if: failure()
+        uses: ./
+        with:
+          base-url: https://status.example.com
+          group: ci
+          name: demo-job
+          token: ${{ secrets.GATUS_TOKEN }}
+          status: error
+          error-message: "Demo job failed"
+          error-details: "See workflow logs for details"

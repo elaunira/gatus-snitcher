@@ -1,0 +1,22 @@
+{
+  "name": "gatus-snitcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Report success or error to a Gatus external endpoint via its API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/index.ts -o dist --license licenses.txt",
+    "clean": "rm -rf dist lib"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.5.0"
+  }
+}
