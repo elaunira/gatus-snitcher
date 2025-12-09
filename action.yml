@@ -55,7 +55,7 @@ inputs:
   timeout-ms:
     description: "HTTP request timeout in milliseconds"
     required: false
-    default: "15000"
+    default: "10000"
   timer-id:
     description: "Optional timer ID to namespace the start time across steps (defaults to derived endpoint key)"
     required: false

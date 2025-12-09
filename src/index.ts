@@ -96,6 +96,35 @@ function toKeySegment(s: string): string {
   return s.replace(/[ \/_.,#]/g, '-');
 }
 
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+  maxRetries: number
+): Promise<{ response?: Response; error?: string }> {
+  let lastError = '';
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      core.info(`Retry attempt ${attempt}/${maxRetries}...`);
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      return { response: res };
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      lastError = err instanceof Error ? err.message : String(err);
+      core.info(`Request failed: ${lastError}`);
+    }
+  }
+  return { error: lastError };
+}
+
 async function main(): Promise<void> {
   const modeIn = (core.getInput('mode') || 'report').toLowerCase();
   const mode = (modeIn === 'start' ? 'start' : 'report') as Inputs['mode'];
@@ -114,7 +143,7 @@ async function main(): Promise<void> {
   const authScheme = authSchemeIn === '' ? null : authSchemeIn || 'Bearer';
   const endpointPath = core.getInput('endpoint-path') || '/api/v1/endpoints';
   const endpointSuffix = core.getInput('endpoint-suffix') || '/external';
-  const timeoutMs = Number(core.getInput('timeout-ms') || '15000');
+  const timeoutMs = Number(core.getInput('timeout-ms') || '10000');
   const dryRun = parseBoolean(core.getInput('dry-run'));
   const extraHeadersRaw = core.getInput('extra-headers') || '';
   const timerIdInput = core.getInput('timer-id') || '';
@@ -192,37 +221,37 @@ async function main(): Promise<void> {
     return;
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      method: 'POST',
-      headers,
-      body: '',
-      signal: controller.signal,
-    });
-  } catch (err: unknown) {
-    clearTimeout(timer);
-    const message = err instanceof Error ? err.message : String(err);
-    core.setFailed(`Request failed: ${message}`);
+  const { response: res, error } = await fetchWithRetry(
+    url.toString(),
+    { method: 'POST', headers, body: '' },
+    timeoutMs,
+    1 // retry once
+  );
+
+  if (error || !res) {
+    core.warning(`⚠️ Failed to report to Gatus after retries: ${error}`);
+    core.setOutput('status', status);
+    core.setOutput('endpoint', url.toString());
+    core.setOutput('http-status', 0);
     return;
   }
-  clearTimeout(timer);
 
-  const httpStatus = (res as Response).status;
+  const httpStatus = res.status;
   let text = '';
   try {
-    text = await (res as Response).text();
+    text = await res.text();
   } catch {
     /* noop */
   }
 
-  if (!(res as Response).ok) {
+  if (!res.ok) {
     if (text) {
-      core.error(text);
+      core.warning(text);
     }
-    core.setFailed(`Gatus responded with HTTP ${httpStatus}`);
+    core.warning(`⚠️ Gatus responded with HTTP ${httpStatus}`);
+    core.setOutput('status', status);
+    core.setOutput('endpoint', url.toString());
+    core.setOutput('http-status', httpStatus);
     return;
   }
 
