@@ -15,8 +15,8 @@ inputs:
     required: false
     default: Bearer
   base-url:
-    description: "Base URL of your Gatus instance (e.g., https://status.example.com)"
-    required: true
+    description: "Base URL of your Gatus instance (e.g., https://status.example.com). Required when mode is 'report'."
+    required: false
   duration:
     description: "Optional duration for the run as a duration string (e.g., 10s, 250ms)."
     required: false
@@ -60,8 +60,8 @@ inputs:
     description: "Optional timer ID to namespace the start time across steps (defaults to derived endpoint key)"
     required: false
   token:
-    description: "API token used to authenticate against Gatus"
-    required: true
+    description: "API token used to authenticate against Gatus. Required when mode is 'report'."
+    required: false
 
 outputs:
   endpoint:
