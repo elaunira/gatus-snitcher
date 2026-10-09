@@ -72,5 +72,5 @@ outputs:
     description: "Status reported to Gatus (success or error)"
 
 runs:
-  using: node20
+  using: node24
   main: dist/index.js
