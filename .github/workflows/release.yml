@@ -26,3 +26,24 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+      # A release created with the workflow token does not trigger update-major-tag.yml, so the
+      # moving tags are updated here too
+      - name: Move major and minor tags
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "Tag $TAG is not v<major>.<minor>[.<patch>]: no moving tag to update"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          major_tag="${TAG%%.*}"
+          git tag -fa "$major_tag" -m "Update $major_tag to $TAG"
+          git push origin "$major_tag" --force
+          if [[ "$TAG" == v*.*.* ]]; then
+            minor_tag="${TAG%.*}"
+            git tag -fa "$minor_tag" -m "Update $minor_tag to $TAG"
+            git push origin "$minor_tag" --force
+          fi
